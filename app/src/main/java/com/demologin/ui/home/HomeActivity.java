@@ -5,7 +5,6 @@ import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuItem;
 
-import androidx.annotation.NonNull;
 import androidx.appcompat.widget.Toolbar;
 import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.navigation.NavController;
@@ -16,7 +15,6 @@ import androidx.navigation.ui.NavigationUI;
 import com.demologin.BaseActivity;
 import com.demologin.R;
 import com.demologin.ui.login.LoginActivity;
-import com.demologin.ui.signup.SignUpActivity;
 import com.facebook.login.LoginManager;
 import com.google.android.material.navigation.NavigationView;
 

@@ -3,7 +3,6 @@ package com.demologin.ui.login;
 import android.annotation.SuppressLint;
 import android.os.AsyncTask;
 import android.text.TextUtils;
-import android.util.Patterns;
 
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
