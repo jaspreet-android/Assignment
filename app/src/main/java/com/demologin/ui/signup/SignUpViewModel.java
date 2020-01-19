@@ -59,12 +59,10 @@ public class SignUpViewModel extends ViewModel {
         new SignUpOperation().execute(email, fullName, password);
     }
 
-    public void signUpDataChanged(String username, String password, String cnfPassword, String number) {
+    public void signUpDataChanged(String username, String password, String cnfPassword) {
         if (!isUserNameValid(username)) {
             signUpFormState.setValue(new SignUpFormState(R.string.invalid_username, null, null, null));
-        } else if (!isNumberValid(number)) {
-            signUpFormState.setValue(new SignUpFormState(null, null, null, R.string.invalid_number));
-        } else if (!isPasswordValid(password)) {
+        }  else if (!isPasswordValid(password)) {
             signUpFormState.setValue(new SignUpFormState(null, R.string.invalid_password, null, null));
         } else if (!isCnfPasswordValid(cnfPassword)) {
             signUpFormState.setValue(new SignUpFormState(null, null, R.string.invalid_password, null));
