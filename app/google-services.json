@@ -1,0 +1,40 @@
+{
+  "project_info": {
+    "project_number": "1097825062619",
+    "firebase_url": "https://fir-login-3d9ae.firebaseio.com",
+    "project_id": "fir-login-3d9ae",
+    "storage_bucket": "fir-login-3d9ae.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1097825062619:android:dbefdb81e803a72fccc6fe",
+        "android_client_info": {
+          "package_name": "com.demologin"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1097825062619-em923sf97hr8iaoi5rmg5nu6f31ahbaj.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBM1Drx5rFelwNChEYkt8K0msxBrUtC8bk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1097825062619-em923sf97hr8iaoi5rmg5nu6f31ahbaj.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
