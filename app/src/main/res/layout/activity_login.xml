@@ -69,7 +69,7 @@
     <com.facebook.login.widget.LoginButton
         android:id="@+id/fbLogin"
         android:layout_width="203dp"
-        android:layout_height="30dp"
+        android:layout_height="50dp"
         android:layout_marginTop="108dp"
         app:layout_constraintEnd_toEndOf="@+id/googleLogin"
         app:layout_constraintTop_toBottomOf="@+id/buttonLayout" />
