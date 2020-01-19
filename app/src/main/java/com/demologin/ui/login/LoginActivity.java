@@ -89,6 +89,7 @@ public class LoginActivity extends BaseActivity {
             resendCodeBtn.setVisibility(View.INVISIBLE);
             verifyNumberEditText.setVisibility(View.GONE);
         });
+
         final AppCompatImageView googleLogin = findViewById(R.id.googleLogin);
         final LoginButton fbLogin = findViewById(R.id.fbLogin);
         loadingProgressBar = findViewById(R.id.loading);

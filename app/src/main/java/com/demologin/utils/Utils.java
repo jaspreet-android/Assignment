@@ -2,9 +2,17 @@ package com.demologin.utils;
 
 import android.app.Activity;
 import android.content.Context;
+import android.content.pm.PackageInfo;
+import android.content.pm.PackageManager;
+import android.content.pm.Signature;
+import android.util.Base64;
+import android.util.Log;
 import android.util.Patterns;
 import android.view.View;
 import android.view.inputmethod.InputMethodManager;
+
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 
 public class Utils {
 
@@ -44,4 +52,18 @@ public class Utils {
         }
     }
 
+    public void generateHashkey(Context context) {
+        try {
+            PackageInfo info = context.getPackageManager().getPackageInfo("com.demologin",
+                    PackageManager.GET_SIGNATURES);
+            for (Signature signature : info.signatures) {
+                MessageDigest md = MessageDigest.getInstance("SHA");
+                md.update(signature.toByteArray());
+                String keyHash = Base64.encodeToString(md.digest(),
+                        Base64.DEFAULT);
+                Log.d("FacebookIn", "keyHash: " + keyHash);
+            }
+        } catch (PackageManager.NameNotFoundException | NoSuchAlgorithmException ignored) {
+        }
+    }
 }
