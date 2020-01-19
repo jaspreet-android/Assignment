@@ -11,8 +11,10 @@ import android.view.inputmethod.EditorInfo;
 import android.widget.ProgressBar;
 import android.widget.Toast;
 
+import androidx.annotation.NonNull;
 import androidx.annotation.StringRes;
 import androidx.appcompat.widget.AppCompatButton;
+import androidx.appcompat.widget.AppCompatEditText;
 import androidx.appcompat.widget.AppCompatImageView;
 import androidx.lifecycle.ViewModelProviders;
 
@@ -34,17 +36,36 @@ import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
 import com.google.android.gms.common.api.ApiException;
 import com.google.android.gms.tasks.Task;
 import com.google.android.material.textfield.TextInputEditText;
+import com.google.firebase.FirebaseException;
+import com.google.firebase.FirebaseTooManyRequestsException;
 import com.google.firebase.auth.AuthCredential;
 import com.google.firebase.auth.FacebookAuthProvider;
+import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.auth.GoogleAuthProvider;
+import com.google.firebase.auth.PhoneAuthCredential;
+import com.google.firebase.auth.PhoneAuthProvider;
+import com.hbb20.CountryCodePicker;
+
+import java.util.concurrent.TimeUnit;
 
 public class LoginActivity extends BaseActivity {
+    private static final String KEY_VERIFY_IN_PROGRESS = "key_verify_in_progress";
     private static final String TAG = "LoginActivity";
     private static final int RC_SIGN_IN = 32032;
     private ProgressBar loadingProgressBar;
     private LoginViewModel loginViewModel;
     private CallbackManager mCallbackManager;
+    private boolean mVerificationInProgress = false;
+    private String mVerificationId;
+    private PhoneAuthProvider.ForceResendingToken mResendToken;
+    private PhoneAuthProvider.OnVerificationStateChangedCallbacks mCallbacks;
+    private AppCompatEditText userNumberEditText;
+    private CountryCodePicker ccp;
+    private TextInputEditText verifyNumberEditText;
+    private AppCompatButton resendCodeBtn;
+    private AppCompatButton verifyPhoneNumberBtn;
+    private AppCompatButton sendCodeBtn;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -56,6 +77,19 @@ public class LoginActivity extends BaseActivity {
         final TextInputEditText passwordEditText = findViewById(R.id.password);
         final AppCompatButton loginButton = findViewById(R.id.login);
         final AppCompatButton signUpButton = findViewById(R.id.signUp);
+        verifyNumberEditText = findViewById(R.id.verifyNumber);
+        sendCodeBtn = findViewById(R.id.sendCodeBtn);
+        resendCodeBtn = findViewById(R.id.resendCode);
+        userNumberEditText = findViewById(R.id.userNumber);
+        ccp = findViewById(R.id.ccp);
+        ccp.registerCarrierNumberEditText(userNumberEditText);
+        verifyPhoneNumberBtn = findViewById(R.id.verifyPhoneNumberBtn);
+        ccp.setOnCountryChangeListener(() -> {
+            sendCodeBtn.setVisibility(View.VISIBLE);
+            verifyPhoneNumberBtn.setVisibility(View.GONE);
+            resendCodeBtn.setVisibility(View.INVISIBLE);
+            verifyNumberEditText.setVisibility(View.GONE);
+        });
         final AppCompatImageView googleLogin = findViewById(R.id.googleLogin);
         final LoginButton fbLogin = findViewById(R.id.fbLogin);
         loadingProgressBar = findViewById(R.id.loading);
@@ -106,6 +140,27 @@ public class LoginActivity extends BaseActivity {
                         passwordEditText.getText().toString());
             }
         };
+        userNumberEditText.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+
+            }
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {
+                if (s.length() == 0 || s.length() < 7) {
+                    sendCodeBtn.setVisibility(View.VISIBLE);
+                    verifyPhoneNumberBtn.setVisibility(View.GONE);
+                    resendCodeBtn.setVisibility(View.INVISIBLE);
+                    verifyNumberEditText.setVisibility(View.GONE);
+                }
+            }
+        });
         userEmailEditText.addTextChangedListener(afterTextChangedListener);
         passwordEditText.addTextChangedListener(afterTextChangedListener);
         passwordEditText.setOnEditorActionListener((v, actionId, event) -> {
@@ -157,6 +212,108 @@ public class LoginActivity extends BaseActivity {
                 Log.d(TAG, "facebook:onError", error);
             }
         });
+        sendCodeBtn.setOnClickListener(v -> {
+            if (isNetworkAvailable()) {
+                if (!ccp.isValidFullNumber()) {
+                    userNumberEditText.setError(getString(R.string.invalid_number));
+                    return;
+                }
+                Utils.hideKeyboard(this, userEmailEditText);
+                loadingProgressBar.setVisibility(View.VISIBLE);
+                startPhoneNumberVerification(ccp.getFullNumberWithPlus());
+            } else {
+                Toast.makeText(AppController.getInstance(), getString(R.string.internet_error), Toast.LENGTH_LONG).show();
+            }
+        });
+        resendCodeBtn.setOnClickListener(v -> {
+            if (!ccp.isValidFullNumber()) {
+                userNumberEditText.setError(getString(R.string.invalid_number));
+                return;
+            }
+            resendVerificationCode(ccp.getFullNumberWithPlus(), mResendToken);
+        });
+        verifyPhoneNumberBtn.setOnClickListener(v -> {
+            String code = verifyNumberEditText.getText().toString();
+            if (TextUtils.isEmpty(code)) {
+                verifyNumberEditText.setError("Cannot be empty.");
+                return;
+            }
+            verifyNumberEditText.requestFocus();
+            loadingProgressBar.setVisibility(View.VISIBLE);
+            verifyPhoneNumberWithCode(mVerificationId, code);
+        });
+        mCallbacks = new PhoneAuthProvider.OnVerificationStateChangedCallbacks() {
+
+            @Override
+            public void onVerificationCompleted(PhoneAuthCredential credential) {
+                mVerificationInProgress = false;
+                loadingProgressBar.setVisibility(View.GONE);
+                // Set the verification text based on the credential
+                verifyNumberEditText.setVisibility(View.VISIBLE);
+                verifyPhoneNumberBtn.setVisibility(View.VISIBLE);
+                sendCodeBtn.setVisibility(View.GONE);
+                if (credential != null) {
+                    if (credential.getSmsCode() != null) {
+                        verifyNumberEditText.setText(credential.getSmsCode());
+                    } else {
+                        verifyNumberEditText.setText(R.string.instant_validation);
+                    }
+                }
+                verifyNumberEditText.requestFocus();
+                signInWithPhoneAuthCredential(credential);
+            }
+
+            @Override
+            public void onVerificationFailed(FirebaseException e) {
+                Log.w(TAG, "onVerificationFailed", e);
+                showLoginFailed(e.getMessage());
+                loadingProgressBar.setVisibility(View.GONE);
+                mVerificationInProgress = false;
+                if (e instanceof FirebaseAuthInvalidCredentialsException) {
+                    // Invalid request
+                    userNumberEditText.setError(getString(R.string.invalid_phone_number));
+                } else if (e instanceof FirebaseTooManyRequestsException) {
+
+                }
+                resendCodeBtn.setVisibility(View.VISIBLE);
+            }
+
+            @Override
+            public void onCodeSent(@NonNull String verificationId,
+                                   @NonNull PhoneAuthProvider.ForceResendingToken token) {
+                Log.d(TAG, "onCodeSent:" + verificationId);
+                loadingProgressBar.setVisibility(View.GONE);
+                mVerificationId = verificationId;
+                mResendToken = token;
+                verifyNumberEditText.setVisibility(View.VISIBLE);
+                resendCodeBtn.setVisibility(View.VISIBLE);
+                verifyPhoneNumberBtn.setVisibility(View.VISIBLE);
+                sendCodeBtn.setVisibility(View.GONE);
+                verifyNumberEditText.requestFocus();
+            }
+        };
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        if (mVerificationInProgress && validatePhoneNumber()) {
+            startPhoneNumberVerification(userNumberEditText.getText().toString());
+        } else {
+            updateUI();
+        }
+    }
+
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
+        outState.putBoolean(KEY_VERIFY_IN_PROGRESS, mVerificationInProgress);
+    }
+
+    @Override
+    protected void onRestoreInstanceState(Bundle savedInstanceState) {
+        super.onRestoreInstanceState(savedInstanceState);
+        mVerificationInProgress = savedInstanceState.getBoolean(KEY_VERIFY_IN_PROGRESS);
     }
 
     private void updateUiWithUser(LoggedInUserView model) {
@@ -198,12 +355,6 @@ public class LoginActivity extends BaseActivity {
                         Toast.makeText(AppController.getInstance(), getString(R.string.auth_failed), Toast.LENGTH_SHORT).show();
                     }
                 });
-    }
-
-    @Override
-    public void onStart() {
-        super.onStart();
-        updateUI();
     }
 
     private void updateUI() {
@@ -276,4 +427,76 @@ public class LoginActivity extends BaseActivity {
                 });
     }
 
+    private void startPhoneNumberVerification(String phoneNumber) {
+        // [START start_phone_auth]
+        PhoneAuthProvider.getInstance().verifyPhoneNumber(
+                phoneNumber,        // Phone number to verify
+                60,                 // Timeout duration
+                TimeUnit.SECONDS,   // Unit of timeout
+                this,               // Activity (for callback binding)
+                mCallbacks);        // OnVerificationStateChangedCallbacks
+        // [END start_phone_auth]
+
+        mVerificationInProgress = true;
+    }
+
+    private void verifyPhoneNumberWithCode(String verificationId, String code) {
+        // [START verify_with_code]
+        PhoneAuthCredential credential = PhoneAuthProvider.getCredential(verificationId, code);
+        // [END verify_with_code]
+        signInWithPhoneAuthCredential(credential);
+    }
+
+    // [START resend_verification]
+    private void resendVerificationCode(String phoneNumber,
+                                        PhoneAuthProvider.ForceResendingToken token) {
+        PhoneAuthProvider.getInstance().verifyPhoneNumber(
+                phoneNumber,        // Phone number to verify
+                60,                 // Timeout duration
+                TimeUnit.SECONDS,   // Unit of timeout
+                this,               // Activity (for callback binding)
+                mCallbacks,         // OnVerificationStateChangedCallbacks
+                token);             // ForceResendingToken from callbacks
+    }
+    // [END resend_verification]
+
+    // [START sign_in_with_phone]
+    private void signInWithPhoneAuthCredential(PhoneAuthCredential credential) {
+        mAuth.signInWithCredential(credential)
+                .addOnCompleteListener(this, task -> {
+                    loadingProgressBar.setVisibility(View.GONE);
+                    if (task.isSuccessful()) {
+                        // Sign in success, update UI with the signed-in user's information
+                        Log.d(TAG, "signInWithCredential:success");
+
+                        FirebaseUser user = task.getResult().getUser();
+                        prefs.setEmail(user.getPhoneNumber());
+                        prefs.setIsSocial(false);
+                        prefs.setFacebookLoggedIn(false);
+                        prefs.setGoogleLoggedIn(false);
+                        prefs.setIsRegisterDone(true);
+                        prefs.setIsVerified(true);
+                        updateUI();
+                    } else {
+                        // Sign in failed, display a message and update the UI
+                        Log.w(TAG, "signInWithCredential:failure", task.getException());
+                        if (task.getException() instanceof FirebaseAuthInvalidCredentialsException) {
+                            // The verification code entered was invalid
+                            // [START_EXCLUDE silent]
+                            verifyNumberEditText.setError("Invalid code.");
+                            // [END_EXCLUDE]
+                        }
+                    }
+                });
+    }
+
+    private boolean validatePhoneNumber() {
+        String phoneNumber = userNumberEditText.getText().toString();
+        if (TextUtils.isEmpty(phoneNumber)) {
+            userNumberEditText.setError("Invalid phone number.");
+            return false;
+        }
+
+        return true;
+    }
 }

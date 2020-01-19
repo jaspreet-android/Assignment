@@ -8,6 +8,7 @@
     <string name="prompt_cnf_password">Confirm Password</string>
     <string name="action_sign_in">Sign in</string>
     <string name="action_register">Sign Up</string>
+    <string name="action_send_code">Send Code</string>
     <string name="action_sign_in_short">Sign in</string>
     <string name="welcome">"Welcome !"</string>
     <string name="invalid_username">Invalid email</string>
@@ -15,7 +16,7 @@
     <string name="invalid_password">Password must be >5 characters</string>
     <string name="password_not_matched">Password not matched</string>
     <string name="login_failed">"Login failed"</string>
-    <string name="or_with_social">Or Social Login</string>
+    <string name="or_with_social">Social Login</string>
     <string name="facebook_app_id">595996554575860</string>
     <string name="title_activity_home">HomeActivity</string>
     <string name="hint_verification_code">Verification Code</string>
@@ -40,4 +41,5 @@
     <string name="resend_code">Resend Code</string>
     <string name="instant_validation">(instant validation)</string>
     <string name="verify">Verify</string>
+    <string name="or">OR</string>
 </resources>
